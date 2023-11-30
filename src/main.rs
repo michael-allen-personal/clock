@@ -1,10 +1,24 @@
 mod analog_clock;
 
-use iced::widget::{button, column, row, text};
+use std::time;
+
+use ::time::Instant;
+use iced::widget::{button, column, row, text, Row};
 use iced::{Alignment, Element, Sandbox, Settings};
 
 pub fn main() -> iced::Result {
     Counter::run(Settings::default())
+}
+
+// function that returns side by side +/- increment and decrement elements wrapped in a row
+fn inc_dec_buttons<'a>(inc_message: Message, dec_message: Message) -> Row<'a, Message> {
+    row![
+        button("+").on_press(inc_message),
+        button("-").on_press(dec_message),
+    ]
+    .padding(10)
+    .spacing(1)
+    .align_items(Alignment::Center)
 }
 
 // This seems like the "Model" in an MVC
@@ -12,6 +26,8 @@ struct Counter {
     hours: i32,
     minutes: i32,
     seconds: i32,
+    countdown_active: bool,
+    countdown_start_time: ::Instant,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -22,6 +38,8 @@ enum Message {
     MinuteDecrementPressed,
     SecondIncrementPressed,
     SecondDecrementPressed,
+    StartCountdown,
+    StopCountdown,
 }
 
 impl Sandbox for Counter {
@@ -32,6 +50,8 @@ impl Sandbox for Counter {
             hours: 0,
             minutes: 0,
             seconds: 0,
+            countdown_active: false,
+            countdown_start_time: time::Instant::now(),
         }
     }
 
@@ -65,37 +85,56 @@ impl Sandbox for Counter {
                     self.seconds -= 1
                 };
             }
+            Message::StartCountdown => {
+                self.countdown_active = true;
+                self.countdown_start_time = time::Instant::now();
+            }
+            Message::StopCountdown => {
+                self.countdown_active = false;
+            }
         }
     }
 
     fn view(&self) -> Element<Message> {
-        row![
-            column![
-                button("+").on_press(Message::HourIncrementPressed),
-                text(self.hours).size(50),
-                button("-").on_press(Message::HourDecrementPressed),
-                text("Hours").size(14)
+        column![
+            row![
+                column![
+                    text("Hours").size(14),
+                    text(self.hours).size(50),
+                    inc_dec_buttons(Message::HourIncrementPressed, Message::HourDecrementPressed),
+                ]
+                .padding(5)
+                .align_items(Alignment::Center),
+                column![
+                    text("Minutes").size(14),
+                    text(self.minutes).size(50),
+                    inc_dec_buttons(
+                        Message::MinuteIncrementPressed,
+                        Message::MinuteDecrementPressed
+                    ),
+                ]
+                .padding(5)
+                .align_items(Alignment::Center),
+                column![
+                    text("Seconds").size(14),
+                    text(self.seconds).size(50),
+                    inc_dec_buttons(
+                        Message::SecondIncrementPressed,
+                        Message::SecondDecrementPressed
+                    ),
+                ]
+                .padding(5)
+                .align_items(Alignment::Center),
             ]
-            .padding(20)
+            .padding(5)
             .align_items(Alignment::Center),
-            column![
-                button("+").on_press(Message::MinuteIncrementPressed),
-                text(self.minutes).size(50),
-                button("-").on_press(Message::MinuteDecrementPressed),
-                text("Minutes").size(14)
-            ]
-            .padding(20)
-            .align_items(Alignment::Center),
-            column![
-                button("+").on_press(Message::SecondIncrementPressed),
-                text(self.seconds).size(50),
-                button("-").on_press(Message::SecondDecrementPressed),
-                text("Seconds").size(14)
-            ]
-            .padding(20)
-            .align_items(Alignment::Center),
+            row![if self.countdown_active {
+                button("Stop Alarm").on_press(Message::StopCountdown)
+            } else {
+                button("Start Alarm").on_press(Message::StartCountdown)
+            }]
+            .align_items(Alignment::Center)
         ]
-        .padding(20)
         .align_items(Alignment::Center)
         .into()
     }
