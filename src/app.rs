@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 struct ClockValue {
     hour: i64,
@@ -22,12 +22,20 @@ impl ClockValue {
     }
 
     fn hms_input(&mut self, ui: &mut egui::Ui) {
-        ui_counter(ui, &mut self.hour, Some("Hours:   ".to_string()));
-        ui.end_row();
-        ui_counter(ui, &mut self.min, Some("Minutes: ".to_string()));
-        ui.end_row();
-        ui_counter(ui, &mut self.sec, Some("Seconds: ".to_string()));
-        ui.end_row();
+        ui.columns(2, |columns| {
+            columns[0].label("Hours: ");
+            columns[0].end_row();
+            columns[0].label("Minutes: ");
+            columns[0].end_row();
+            columns[0].label("Seconds: ");
+            columns[0].end_row();
+            ui_counter(&mut columns[1], &mut self.hour, None);
+            columns[1].end_row();
+            ui_counter(&mut columns[1], &mut self.min, None);
+            columns[1].end_row();
+            ui_counter(&mut columns[1], &mut self.sec, None);
+            columns[1].end_row();
+        });
     }
 }
 
@@ -49,11 +57,27 @@ impl Default for ClockApp {
 }
 
 impl ClockApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
+        let ctx = &cc.egui_ctx;
+        let mut style: egui::Style = (*ctx.style()).clone();
+
+        // Set the font size for body text
+        style
+            .text_styles
+            .get_mut(&egui::TextStyle::Body)
+            .unwrap()
+            .size = 20.0;
+        style
+            .text_styles
+            .get_mut(&egui::TextStyle::Button)
+            .unwrap()
+            .size = 20.0;
+
+        ctx.set_style(style);
         Self::default()
     }
 }
@@ -62,9 +86,10 @@ impl eframe::App for ClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.countdown_state {
             CountdownState::Active(start_time, clock_value) => {
-                let elapsed = start_time.elapsed().as_secs() as i64;
-                let remaining_sec = clock_value.to_seconds() - elapsed;
-                if remaining_sec < 0 {
+                ctx.request_repaint_after(Duration::new(1, 0));
+                let elapsed = start_time.elapsed().as_millis() as i64;
+                let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
+                if remaining_ms < 0 {
                     self.countdown_state = CountdownState::Inactive(ClockValue {
                         hour: clock_value.hour,
                         min: clock_value.min,
@@ -73,7 +98,7 @@ impl eframe::App for ClockApp {
                     return;
                 }
 
-                ui.label(time_left_as_str(remaining_sec));
+                ui.label(time_left_as_str(i64::from(remaining_ms / 1000)));
                 if ui.button("Stop").clicked() {
                     self.countdown_state = CountdownState::Inactive(ClockValue {
                         hour: clock_value.hour,
@@ -93,6 +118,9 @@ impl eframe::App for ClockApp {
                             sec: clock_value.sec,
                         },
                     );
+                }
+                if ui.button("Reset").clicked() {
+                    self.countdown_state = CountdownState::Inactive(ClockValue::default());
                 }
             }
         });
