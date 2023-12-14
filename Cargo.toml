@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 egui = "0.24"
 eframe = "0.24"
+rodio = "0.17"
 
 time = { version = "0.3", features = ["local-offset"] }
