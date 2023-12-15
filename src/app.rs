@@ -1,4 +1,7 @@
+use std::io::BufReader;
 use std::time::{Duration, Instant};
+
+use rodio::{OutputStream, Sink};
 
 struct ClockValue {
     hour: i64,
@@ -39,19 +42,20 @@ impl ClockValue {
     }
 }
 
-enum CountdownState {
-    Active(Instant, ClockValue),
-    Inactive(ClockValue),
+enum AlarmState {
+    Countdown(Instant, ClockValue),
+    SetAlarm(ClockValue),
+    PlayingAlarm(ClockValue, OutputStream, Sink),
 }
 
 pub struct ClockApp {
-    countdown_state: CountdownState,
+    alarm_state: AlarmState,
 }
 
 impl Default for ClockApp {
     fn default() -> Self {
         Self {
-            countdown_state: CountdownState::Inactive(ClockValue::default()),
+            alarm_state: AlarmState::SetAlarm(ClockValue::default()),
         }
     }
 }
@@ -84,33 +88,54 @@ impl ClockApp {
 
 impl eframe::App for ClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| match &mut self.countdown_state {
-            CountdownState::Active(start_time, clock_value) => {
+        egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
+            AlarmState::Countdown(start_time, clock_value) => {
                 ctx.request_repaint_after(Duration::new(1, 0));
                 let elapsed = start_time.elapsed().as_millis() as i64;
                 let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
-                if remaining_ms < 0 {
-                    self.countdown_state = CountdownState::Inactive(ClockValue {
-                        hour: clock_value.hour,
-                        min: clock_value.min,
-                        sec: clock_value.sec,
-                    });
+                if remaining_ms <= 0 {
+                    let (stream, handle) = rodio::OutputStream::try_default().unwrap();
+                    let sink = rodio::Sink::try_new(&handle).unwrap();
+
+                    let alarm_sound_file =
+                        std::fs::File::open("assets/FinalFantasyVictoryFanfareOrchestrated.flac")
+                            .unwrap();
+                    sink.append(rodio::Decoder::new(BufReader::new(alarm_sound_file)).unwrap());
+                    self.alarm_state = AlarmState::PlayingAlarm(
+                        ClockValue {
+                            hour: clock_value.hour,
+                            min: clock_value.min,
+                            sec: clock_value.sec,
+                        },
+                        stream,
+                        sink,
+                    );
                     return;
                 }
 
                 ui.label(time_left_as_str(i64::from(remaining_ms / 1000)));
                 if ui.button("Stop").clicked() {
-                    self.countdown_state = CountdownState::Inactive(ClockValue {
+                    self.alarm_state = AlarmState::SetAlarm(ClockValue {
                         hour: clock_value.hour,
                         min: clock_value.min,
                         sec: clock_value.sec,
                     });
                 }
             }
-            CountdownState::Inactive(clock_value) => {
+            AlarmState::PlayingAlarm(clock_value, _stream, sink) => {
+                if ui.button("Stop").clicked() {
+                    sink.stop();
+                    self.alarm_state = AlarmState::SetAlarm(ClockValue {
+                        hour: clock_value.hour,
+                        min: clock_value.min,
+                        sec: clock_value.sec,
+                    });
+                }
+            }
+            AlarmState::SetAlarm(clock_value) => {
                 clock_value.hms_input(ui);
                 if ui.button("Start").clicked() {
-                    self.countdown_state = CountdownState::Active(
+                    self.alarm_state = AlarmState::Countdown(
                         Instant::now(),
                         ClockValue {
                             hour: clock_value.hour,
@@ -120,7 +145,7 @@ impl eframe::App for ClockApp {
                     );
                 }
                 if ui.button("Reset").clicked() {
-                    self.countdown_state = CountdownState::Inactive(ClockValue::default());
+                    self.alarm_state = AlarmState::SetAlarm(ClockValue::default());
                 }
             }
         });
