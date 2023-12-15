@@ -100,7 +100,7 @@ impl eframe::App for AlarmClock {
                 }
             }
             AlarmState::Countdown(start_time, clock_value) => {
-                // .75 seconds in nanoseconds
+                // .5 seconds in nanoseconds
                 // Make sure the window is refershing less than once a second the second
                 // countdown looks smooth
                 ctx.request_repaint_after(Duration::new(0, 500_000_000));
