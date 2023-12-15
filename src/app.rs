@@ -3,49 +3,75 @@ use std::time::{Duration, Instant};
 
 use rodio::{OutputStream, Sink};
 
+#[derive(Clone, Copy, Default)]
 struct ClockValue {
     hour: i64,
     min: i64,
     sec: i64,
 }
 
-impl Default for ClockValue {
-    fn default() -> Self {
-        Self {
-            hour: 0,
-            min: 0,
-            sec: 0,
-        }
-    }
-}
-
 impl ClockValue {
-    pub fn to_seconds(&self) -> i64 {
+    pub fn to_seconds(self) -> i64 {
         self.hour * 60 * 60 + self.min * 60 + self.sec
     }
 
-    fn hms_input(&mut self, ui: &mut egui::Ui) {
+    fn ui_hms_input(&mut self, ui: &mut egui::Ui) {
         ui.columns(2, |columns| {
             columns[0].label("Hours: ");
+            ui_time_counter(&mut columns[1], &mut self.hour);
             columns[0].end_row();
+            columns[1].end_row();
+
             columns[0].label("Minutes: ");
+            ui_time_counter(&mut columns[1], &mut self.min);
             columns[0].end_row();
+            columns[1].end_row();
+
             columns[0].label("Seconds: ");
+            ui_time_counter(&mut columns[1], &mut self.sec);
             columns[0].end_row();
-            ui_counter(&mut columns[1], &mut self.hour, None);
-            columns[1].end_row();
-            ui_counter(&mut columns[1], &mut self.min, None);
-            columns[1].end_row();
-            ui_counter(&mut columns[1], &mut self.sec, None);
             columns[1].end_row();
         });
     }
 }
 
 enum AlarmState {
-    Countdown(Instant, ClockValue),
     SetAlarm(ClockValue),
+    Countdown(Instant, ClockValue),
     PlayingAlarm(ClockValue, OutputStream, Sink),
+}
+
+impl AlarmState {
+    fn set_alarm(clock_value: ClockValue) -> Self {
+        AlarmState::SetAlarm(clock_value)
+    }
+
+    fn start_countdown(clock_value: ClockValue) -> Self {
+        AlarmState::Countdown(Instant::now(), clock_value)
+    }
+
+    fn play_alarm(clock_value: ClockValue) -> Self {
+        // get the default device every time, as sometimes I will change
+        // output while the clock is still active. I would want the alarm
+        // to play out of whatever the current output device is when it
+        // goes off
+        let (stream, handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = rodio::Sink::try_new(&handle).unwrap();
+
+        let alarm_sound_file =
+            std::fs::File::open("assets/FinalFantasyVictoryFanfareOrchestrated.flac").unwrap();
+
+        sink.append(rodio::Decoder::new(BufReader::new(alarm_sound_file)).unwrap());
+
+        AlarmState::PlayingAlarm(clock_value, stream, sink)
+    }
+
+    fn stop_alarm(&mut self) {
+        if let AlarmState::PlayingAlarm(clock_value, _stream, sink) = self {
+            sink.stop();
+            *self = AlarmState::SetAlarm(*clock_value);
+        }
+    }
 }
 
 pub struct ClockApp {
@@ -64,63 +90,38 @@ impl eframe::App for ClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
             AlarmState::SetAlarm(clock_value) => {
-                clock_value.hms_input(ui);
+                clock_value.ui_hms_input(ui);
                 if ui.button("Start").clicked() {
-                    self.alarm_state = AlarmState::Countdown(
-                        Instant::now(),
-                        ClockValue {
-                            hour: clock_value.hour,
-                            min: clock_value.min,
-                            sec: clock_value.sec,
-                        },
-                    );
+                    self.alarm_state = AlarmState::start_countdown(*clock_value);
                 }
                 if ui.button("Reset").clicked() {
-                    self.alarm_state = AlarmState::SetAlarm(ClockValue::default());
+                    self.alarm_state = AlarmState::set_alarm(ClockValue::default());
                 }
             }
             AlarmState::Countdown(start_time, clock_value) => {
                 // .75 seconds in nanoseconds
-                ctx.request_repaint_after(Duration::new(0, 750000000));
+                // Make sure the window is refershing less than once a second the second
+                // countdown looks smooth
+                ctx.request_repaint_after(Duration::new(0, 500000000));
+                // Use miliseconds so the visual update is less likely to be choppy
+                // due to rounding. Honestly didn't fully check to see if it works
+                // that way but it makes sense that it would as these arent float types
                 let elapsed = start_time.elapsed().as_millis() as i64;
                 let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
                 if remaining_ms <= 0 {
-                    let (stream, handle) = rodio::OutputStream::try_default().unwrap();
-                    let sink = rodio::Sink::try_new(&handle).unwrap();
-
-                    let alarm_sound_file =
-                        std::fs::File::open("assets/FinalFantasyVictoryFanfareOrchestrated.flac")
-                            .unwrap();
-                    sink.append(rodio::Decoder::new(BufReader::new(alarm_sound_file)).unwrap());
-                    self.alarm_state = AlarmState::PlayingAlarm(
-                        ClockValue {
-                            hour: clock_value.hour,
-                            min: clock_value.min,
-                            sec: clock_value.sec,
-                        },
-                        stream,
-                        sink,
-                    );
+                    self.alarm_state = AlarmState::play_alarm(*clock_value);
                     return;
                 }
 
-                ui.label(time_left_as_str(i64::from(remaining_ms / 1000)));
+                ui.label(time_left_as_str(remaining_ms / 1000));
                 if ui.button("Stop").clicked() {
-                    self.alarm_state = AlarmState::SetAlarm(ClockValue {
-                        hour: clock_value.hour,
-                        min: clock_value.min,
-                        sec: clock_value.sec,
-                    });
+                    self.alarm_state = AlarmState::start_countdown(*clock_value);
                 }
             }
-            AlarmState::PlayingAlarm(clock_value, _stream, sink) => {
+            AlarmState::PlayingAlarm(_clock_value, _stream, _sink) => {
+                ui.label("Times Up!");
                 if ui.button("Stop").clicked() {
-                    sink.stop();
-                    self.alarm_state = AlarmState::SetAlarm(ClockValue {
-                        hour: clock_value.hour,
-                        min: clock_value.min,
-                        sec: clock_value.sec,
-                    });
+                    self.alarm_state.stop_alarm();
                 }
             }
         });
@@ -129,14 +130,10 @@ impl eframe::App for ClockApp {
 
 impl ClockApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
-        // Restore app state using cc.storage (requires the "persistence" feature).
-        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
-        // for e.g. egui::PaintCallback.
         let ctx = &cc.egui_ctx;
         let mut style: egui::Style = (*ctx.style()).clone();
 
-        // Set the font size for body text
+        // Set the font size for body and button text
         style
             .text_styles
             .get_mut(&egui::TextStyle::Body)
@@ -153,18 +150,29 @@ impl ClockApp {
     }
 }
 
-fn ui_counter(ui: &mut egui::Ui, counter: &mut i64, label_text: Option<String>) {
-    // Put the buttons and label on the same row:
+fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i64) {
+    // This component ensures the counter value is
+    // between 0 and 59, as minute and second time
+    // values are between those numbers. Hours are not,
+    // but I have not added days for it to roll over
+    // into, and at a 59 hour alarm you are better off
+    // using a calendar app anyways.
+    // The buttons and label are on the same row.
     ui.horizontal(|ui| {
-        if label_text.is_some() {
-            ui.label(label_text.unwrap());
-        }
-        if ui.button("−").clicked() && counter.is_positive() {
-            *counter -= 1;
+        if ui.button("−").clicked() {
+            if counter.is_positive() {
+                *counter -= 1;
+            } else {
+                *counter = 59;
+            }
         }
         ui.label(counter.to_string());
         if ui.button("+").clicked() {
-            *counter += 1;
+            if *counter < 59 {
+                *counter += 1;
+            } else {
+                *counter = 0;
+            }
         }
     });
 }
