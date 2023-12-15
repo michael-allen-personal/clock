@@ -5,13 +5,13 @@ use rodio::{OutputStream, Sink};
 
 #[derive(Clone, Copy, Default)]
 struct ClockValue {
-    hour: i64,
-    min: i64,
-    sec: i64,
+    hour: i32,
+    min: i32,
+    sec: i32,
 }
 
 impl ClockValue {
-    pub fn to_seconds(self) -> i64 {
+    pub fn to_seconds(self) -> i32 {
         self.hour * 60 * 60 + self.min * 60 + self.sec
     }
 
@@ -86,6 +86,7 @@ impl Default for AlarmClock {
     }
 }
 
+#[allow(clippy::cast_possible_truncation)]
 impl eframe::App for AlarmClock {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
@@ -102,11 +103,11 @@ impl eframe::App for AlarmClock {
                 // .75 seconds in nanoseconds
                 // Make sure the window is refershing less than once a second the second
                 // countdown looks smooth
-                ctx.request_repaint_after(Duration::new(0, 500000000));
+                ctx.request_repaint_after(Duration::new(0, 500_000_000));
                 // Use miliseconds so the visual update is less likely to be choppy
                 // due to rounding. Honestly didn't fully check to see if it works
                 // that way but it makes sense that it would as these arent float types
-                let elapsed = start_time.elapsed().as_millis() as i64;
+                let elapsed = start_time.elapsed().as_millis() as i32;
                 let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
                 if remaining_ms <= 0 {
                     self.alarm_state = AlarmState::play_alarm(*clock_value);
@@ -150,7 +151,7 @@ impl AlarmClock {
     }
 }
 
-fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i64) {
+fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i32) {
     // This component ensures the counter value is
     // between 0 and 59, as minute and second time
     // values are between those numbers. Hours are not,
@@ -177,10 +178,10 @@ fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i64) {
     });
 }
 
-fn time_left_as_str(remaining_sec: i64) -> String {
+fn time_left_as_str(remaining_sec: i32) -> String {
     // Convert remaining_sec to hours, minutes, and seconds
     let hours = remaining_sec / 3600;
     let minutes = (remaining_sec % 3600) / 60;
     let seconds = remaining_sec % 60;
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+    format!("{hours:02}:{minutes:02}:{seconds:02}")
 }
