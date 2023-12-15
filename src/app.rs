@@ -74,11 +74,11 @@ impl AlarmState {
     }
 }
 
-pub struct ClockApp {
+pub struct AlarmClock {
     alarm_state: AlarmState,
 }
 
-impl Default for ClockApp {
+impl Default for AlarmClock {
     fn default() -> Self {
         Self {
             alarm_state: AlarmState::SetAlarm(ClockValue::default()),
@@ -86,7 +86,7 @@ impl Default for ClockApp {
     }
 }
 
-impl eframe::App for ClockApp {
+impl eframe::App for AlarmClock {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
             AlarmState::SetAlarm(clock_value) => {
@@ -128,7 +128,7 @@ impl eframe::App for ClockApp {
     }
 }
 
-impl ClockApp {
+impl AlarmClock {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let ctx = &cc.egui_ctx;
         let mut style: egui::Style = (*ctx.style()).clone();

@@ -15,6 +15,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Clock",
         native_options,
-        Box::new(|cc| Box::new(app::ClockApp::new(cc))),
+        Box::new(|cc| Box::new(app::AlarmClock::new(cc))),
     )
 }
