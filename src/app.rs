@@ -60,37 +60,28 @@ impl Default for ClockApp {
     }
 }
 
-impl ClockApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
-        // Restore app state using cc.storage (requires the "persistence" feature).
-        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
-        // for e.g. egui::PaintCallback.
-        let ctx = &cc.egui_ctx;
-        let mut style: egui::Style = (*ctx.style()).clone();
-
-        // Set the font size for body text
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Body)
-            .unwrap()
-            .size = 20.0;
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Button)
-            .unwrap()
-            .size = 20.0;
-
-        ctx.set_style(style);
-        Self::default()
-    }
-}
-
 impl eframe::App for ClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
+            AlarmState::SetAlarm(clock_value) => {
+                clock_value.hms_input(ui);
+                if ui.button("Start").clicked() {
+                    self.alarm_state = AlarmState::Countdown(
+                        Instant::now(),
+                        ClockValue {
+                            hour: clock_value.hour,
+                            min: clock_value.min,
+                            sec: clock_value.sec,
+                        },
+                    );
+                }
+                if ui.button("Reset").clicked() {
+                    self.alarm_state = AlarmState::SetAlarm(ClockValue::default());
+                }
+            }
             AlarmState::Countdown(start_time, clock_value) => {
-                ctx.request_repaint_after(Duration::new(1, 0));
+                // .75 seconds in nanoseconds
+                ctx.request_repaint_after(Duration::new(0, 750000000));
                 let elapsed = start_time.elapsed().as_millis() as i64;
                 let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
                 if remaining_ms <= 0 {
@@ -132,23 +123,33 @@ impl eframe::App for ClockApp {
                     });
                 }
             }
-            AlarmState::SetAlarm(clock_value) => {
-                clock_value.hms_input(ui);
-                if ui.button("Start").clicked() {
-                    self.alarm_state = AlarmState::Countdown(
-                        Instant::now(),
-                        ClockValue {
-                            hour: clock_value.hour,
-                            min: clock_value.min,
-                            sec: clock_value.sec,
-                        },
-                    );
-                }
-                if ui.button("Reset").clicked() {
-                    self.alarm_state = AlarmState::SetAlarm(ClockValue::default());
-                }
-            }
         });
+    }
+}
+
+impl ClockApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+        // Restore app state using cc.storage (requires the "persistence" feature).
+        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+        // for e.g. egui::PaintCallback.
+        let ctx = &cc.egui_ctx;
+        let mut style: egui::Style = (*ctx.style()).clone();
+
+        // Set the font size for body text
+        style
+            .text_styles
+            .get_mut(&egui::TextStyle::Body)
+            .unwrap()
+            .size = 20.0;
+        style
+            .text_styles
+            .get_mut(&egui::TextStyle::Button)
+            .unwrap()
+            .size = 20.0;
+
+        ctx.set_style(style);
+        Self::default()
     }
 }
 
