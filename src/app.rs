@@ -89,43 +89,7 @@ impl Default for AlarmClock {
 #[allow(clippy::cast_possible_truncation)]
 impl eframe::App for AlarmClock {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| match &mut self.alarm_state {
-            AlarmState::SetAlarm(clock_value) => {
-                clock_value.ui_hms_input(ui);
-                if ui.button("Start").clicked() {
-                    self.alarm_state = AlarmState::start_countdown(*clock_value);
-                }
-                if ui.button("Reset").clicked() {
-                    self.alarm_state = AlarmState::set_alarm(ClockValue::default());
-                }
-            }
-            AlarmState::Countdown(start_time, clock_value) => {
-                // .5 seconds in nanoseconds
-                // Make sure the window is refershing less than once a second so the second
-                // countdown looks smooth
-                ctx.request_repaint_after(Duration::new(0, 500_000_000));
-                // Use miliseconds so the visual update is less likely to be choppy
-                // due to rounding. Honestly didn't fully check to see if it works
-                // that way but it makes sense that it would as these arent float types
-                let elapsed = start_time.elapsed().as_millis() as i32;
-                let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
-                if remaining_ms <= 0 {
-                    self.alarm_state = AlarmState::play_alarm(*clock_value);
-                    return;
-                }
-
-                ui.label(time_left_as_str(remaining_ms / 1000));
-                if ui.button("Stop").clicked() {
-                    self.alarm_state = AlarmState::start_countdown(*clock_value);
-                }
-            }
-            AlarmState::PlayingAlarm(_clock_value, _stream, _sink) => {
-                ui.label("Times Up!");
-                if ui.button("Stop").clicked() {
-                    self.alarm_state.stop_alarm();
-                }
-            }
-        });
+        egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
     }
 }
 
@@ -148,6 +112,47 @@ impl AlarmClock {
 
         ctx.set_style(style);
         Self::default()
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        match &mut self.alarm_state {
+            AlarmState::SetAlarm(clock_value) => {
+                clock_value.ui_hms_input(ui);
+                if ui.button("Start").clicked() {
+                    self.alarm_state = AlarmState::start_countdown(*clock_value);
+                }
+                if ui.button("Reset").clicked() {
+                    self.alarm_state = AlarmState::set_alarm(ClockValue::default());
+                }
+            }
+            AlarmState::Countdown(start_time, clock_value) => {
+                // .5 seconds in nanoseconds
+                // Make sure the window is refershing less than once a second so the second
+                // countdown looks smooth
+                ui.ctx()
+                    .request_repaint_after(Duration::new(0, 500_000_000));
+                // Use miliseconds so the visual update is less likely to be choppy
+                // due to rounding. Honestly didn't fully check to see if it works
+                // that way but it makes sense that it would as these arent float types
+                let elapsed = start_time.elapsed().as_millis() as i32;
+                let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
+                if remaining_ms <= 0 {
+                    self.alarm_state = AlarmState::play_alarm(*clock_value);
+                    return;
+                }
+
+                ui.label(time_left_as_str(remaining_ms / 1000));
+                if ui.button("Stop").clicked() {
+                    self.alarm_state = AlarmState::start_countdown(*clock_value);
+                }
+            }
+            AlarmState::PlayingAlarm(_clock_value, _stream, _sink) => {
+                ui.label("Times Up!");
+                if ui.button("Stop").clicked() {
+                    self.alarm_state.stop_alarm();
+                }
+            }
+        }
     }
 }
 
