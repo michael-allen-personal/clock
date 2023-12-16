@@ -86,13 +86,13 @@ impl Default for AlarmClock {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
 impl eframe::App for AlarmClock {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
     }
 }
 
+#[allow(clippy::cast_possible_truncation)]
 impl AlarmClock {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let ctx = &cc.egui_ctx;
