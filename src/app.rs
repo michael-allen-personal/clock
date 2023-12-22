@@ -59,7 +59,8 @@ impl AlarmState {
         let sink = rodio::Sink::try_new(&handle).unwrap();
 
         let alarm_sound_file =
-            std::fs::File::open("~/.clock/FinalFantasyVictoryFanfareOrchestrated.flac").unwrap();
+            std::fs::File::open("/home/michael/.clock/FinalFantasyVictoryFanfareOrchestrated.flac")
+                .unwrap();
 
         sink.append(rodio::Decoder::new(BufReader::new(alarm_sound_file)).unwrap());
 
