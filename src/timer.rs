@@ -58,6 +58,7 @@ impl TimerState {
         let (stream, handle) = rodio::OutputStream::try_default().unwrap();
         let sink = rodio::Sink::try_new(&handle).unwrap();
 
+        // something better needs to be done with this
         let timer_sound_file =
             std::fs::File::open("/home/michael/.clock/FinalFantasyVictoryFanfareOrchestrated.flac")
                 .unwrap();

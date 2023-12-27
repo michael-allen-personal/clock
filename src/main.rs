@@ -1,6 +1,6 @@
 use egui::Vec2;
 
-mod app;
+mod timer;
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
@@ -15,6 +15,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Clock",
         native_options,
-        Box::new(|cc| Box::new(app::Timer::new(cc))),
+        Box::new(|cc| Box::new(timer::Timer::new(cc))),
     )
 }
