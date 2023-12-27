@@ -35,66 +35,66 @@ impl ClockValue {
     }
 }
 
-enum AlarmState {
-    SetAlarm(ClockValue),
+enum TimerState {
+    SetTimer(ClockValue),
     Countdown(Instant, ClockValue),
-    PlayingAlarm(ClockValue, OutputStream, Sink),
+    PlayingTimerSound(ClockValue, OutputStream, Sink),
 }
 
-impl AlarmState {
-    fn set_alarm(clock_value: ClockValue) -> Self {
-        AlarmState::SetAlarm(clock_value)
+impl TimerState {
+    fn set_timer(clock_value: ClockValue) -> Self {
+        TimerState::SetTimer(clock_value)
     }
 
     fn start_countdown(clock_value: ClockValue) -> Self {
-        AlarmState::Countdown(Instant::now(), clock_value)
+        TimerState::Countdown(Instant::now(), clock_value)
     }
 
-    fn play_alarm(clock_value: ClockValue) -> Self {
+    fn play_timer_sound(clock_value: ClockValue) -> Self {
         // get the default device every time, as sometimes I will change
-        // output while the clock is still active. I would want the alarm
+        // output while the clock is still active. I would want the timer
         // to play out of whatever the current output device is when it
         // goes off
         let (stream, handle) = rodio::OutputStream::try_default().unwrap();
         let sink = rodio::Sink::try_new(&handle).unwrap();
 
-        let alarm_sound_file =
+        let timer_sound_file =
             std::fs::File::open("/home/michael/.clock/FinalFantasyVictoryFanfareOrchestrated.flac")
                 .unwrap();
 
-        sink.append(rodio::Decoder::new(BufReader::new(alarm_sound_file)).unwrap());
+        sink.append(rodio::Decoder::new(BufReader::new(timer_sound_file)).unwrap());
 
-        AlarmState::PlayingAlarm(clock_value, stream, sink)
+        TimerState::PlayingTimerSound(clock_value, stream, sink)
     }
 
-    fn stop_alarm(&mut self) {
-        if let AlarmState::PlayingAlarm(clock_value, _stream, sink) = self {
+    fn stop_timer(&mut self) {
+        if let TimerState::PlayingTimerSound(clock_value, _stream, sink) = self {
             sink.stop();
-            *self = AlarmState::SetAlarm(*clock_value);
+            *self = TimerState::SetTimer(*clock_value);
         }
     }
 }
 
-pub struct AlarmClock {
-    alarm_state: AlarmState,
+pub struct Timer {
+    timer_state: TimerState,
 }
 
-impl Default for AlarmClock {
+impl Default for Timer {
     fn default() -> Self {
         Self {
-            alarm_state: AlarmState::SetAlarm(ClockValue::default()),
+            timer_state: TimerState::SetTimer(ClockValue::default()),
         }
     }
 }
 
-impl eframe::App for AlarmClock {
+impl eframe::App for Timer {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
     }
 }
 
 #[allow(clippy::cast_possible_truncation)]
-impl AlarmClock {
+impl Timer {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let ctx = &cc.egui_ctx;
         let mut style: egui::Style = (*ctx.style()).clone();
@@ -116,17 +116,17 @@ impl AlarmClock {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        match &mut self.alarm_state {
-            AlarmState::SetAlarm(clock_value) => {
+        match &mut self.timer_state {
+            TimerState::SetTimer(clock_value) => {
                 clock_value.ui_hms_input(ui);
                 if ui.button("Start").clicked() {
-                    self.alarm_state = AlarmState::start_countdown(*clock_value);
+                    self.timer_state = TimerState::start_countdown(*clock_value);
                 }
                 if ui.button("Reset").clicked() {
-                    self.alarm_state = AlarmState::set_alarm(ClockValue::default());
+                    self.timer_state = TimerState::set_timer(ClockValue::default());
                 }
             }
-            AlarmState::Countdown(start_time, clock_value) => {
+            TimerState::Countdown(start_time, clock_value) => {
                 // .5 seconds in nanoseconds
                 // Make sure the window is refershing less than once a second so the second
                 // countdown looks smooth
@@ -138,19 +138,19 @@ impl AlarmClock {
                 let elapsed = start_time.elapsed().as_millis() as i32;
                 let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
                 if remaining_ms <= 0 {
-                    self.alarm_state = AlarmState::play_alarm(*clock_value);
+                    self.timer_state = TimerState::play_timer_sound(*clock_value);
                     return;
                 }
 
                 ui.label(time_left_as_str(remaining_ms / 1000));
                 if ui.button("Stop").clicked() {
-                    self.alarm_state = AlarmState::start_countdown(*clock_value);
+                    self.timer_state = TimerState::start_countdown(*clock_value);
                 }
             }
-            AlarmState::PlayingAlarm(_clock_value, _stream, _sink) => {
+            TimerState::PlayingTimerSound(_clock_value, _stream, _sink) => {
                 ui.label("Times Up!");
                 if ui.button("Stop").clicked() {
-                    self.alarm_state.stop_alarm();
+                    self.timer_state.stop_timer();
                 }
             }
         }
@@ -162,7 +162,7 @@ fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i32) {
     // between 0 and 59, as minute and second time
     // values are between those numbers. Hours are not,
     // but I have not added days for it to roll over
-    // into, and at a 59 hour alarm you are better off
+    // into, and at a 59 hour timer you are better off
     // using a calendar app anyways.
     // The buttons and label are on the same row.
     ui.horizontal(|ui| {
