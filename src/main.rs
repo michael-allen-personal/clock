@@ -1,6 +1,7 @@
 use egui::Vec2;
 
 mod clock;
+mod stopwatch;
 mod timer;
 
 fn main() -> eframe::Result<()> {
