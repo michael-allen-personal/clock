@@ -1,17 +1,19 @@
-// use crate::clock;
+use std::time::{Duration, Instant};
+
+use crate::clock;
 
 enum StopwatchState {
-    Counting,
-    Stopped,
+    Counting(Instant, clock::ClockValue),
+    Stopped(clock::ClockValue),
 }
 
 impl StopwatchState {
-    pub fn start_counting() -> Self {
-        StopwatchState::Counting
+    pub fn start_counting(clock_value: clock::ClockValue) -> Self {
+        StopwatchState::Counting(Instant::now(), clock_value)
     }
 
-    pub fn stop_counting() -> Self {
-        StopwatchState::Stopped
+    pub fn stop_counting(clock_value: clock::ClockValue) -> Self {
+        StopwatchState::Stopped(clock_value)
     }
 }
 
@@ -22,7 +24,7 @@ pub struct Stopwatch {
 impl Default for Stopwatch {
     fn default() -> Self {
         Self {
-            stopwatch_state: StopwatchState::Stopped,
+            stopwatch_state: StopwatchState::Stopped(clock::ClockValue::default()),
         }
     }
 }
