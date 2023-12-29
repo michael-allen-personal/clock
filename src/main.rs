@@ -1,5 +1,6 @@
 use egui::Vec2;
 
+mod app;
 mod clock;
 mod stopwatch;
 mod timer;
@@ -7,7 +8,7 @@ mod timer;
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder {
-            max_inner_size: Some(Vec2::new(190.0, 150.0)),
+            max_inner_size: Some(Vec2::new(190.0, 200.0)),
             min_inner_size: Some(Vec2::new(190.0, 150.0)),
             maximize_button: Some(false),
             ..Default::default()
@@ -17,6 +18,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Clock",
         native_options,
-        Box::new(|cc| Box::new(timer::Timer::new(cc))),
+        Box::new(|cc| Box::new(app::Application::new(cc))),
     )
 }

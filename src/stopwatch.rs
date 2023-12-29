@@ -1,19 +1,24 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
+use crate::app;
 use crate::clock;
 
 enum StopwatchState {
-    Counting(Instant, clock::ClockValue),
-    Stopped(clock::ClockValue),
+    Counting(Instant, clock::TimeDisplay),
+    Stopped(clock::TimeDisplay),
 }
 
 impl StopwatchState {
-    pub fn start_counting(clock_value: clock::ClockValue) -> Self {
+    pub fn start_counting(clock_value: clock::TimeDisplay) -> Self {
         StopwatchState::Counting(Instant::now(), clock_value)
     }
 
-    pub fn stop_counting(clock_value: clock::ClockValue) -> Self {
+    pub fn stop_counting(clock_value: clock::TimeDisplay) -> Self {
         StopwatchState::Stopped(clock_value)
+    }
+
+    pub fn reset_counter() -> Self {
+        StopwatchState::Stopped(clock::TimeDisplay::default())
     }
 }
 
@@ -24,43 +29,31 @@ pub struct Stopwatch {
 impl Default for Stopwatch {
     fn default() -> Self {
         Self {
-            stopwatch_state: StopwatchState::Stopped(clock::ClockValue::default()),
+            stopwatch_state: StopwatchState::Stopped(clock::TimeDisplay::default()),
         }
     }
 }
 
-impl eframe::App for Stopwatch {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
-    }
-}
-
-#[allow(clippy::cast_possible_truncation)]
-impl Stopwatch {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let ctx = &cc.egui_ctx;
-        let mut style: egui::Style = (*ctx.style()).clone();
-
-        // Set the font size for body and button text
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Body)
-            .unwrap()
-            .size = 20.0;
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Button)
-            .unwrap()
-            .size = 20.0;
-
-        ctx.set_style(style);
-        Self::default()
-    }
-
-    fn ui(&mut self, _ui: &mut egui::Ui) {
+impl app::Ui for Stopwatch {
+    fn ui(&mut self, ui: &mut egui::Ui) {
         match &mut self.stopwatch_state {
-            StopwatchState::Stopped => todo!(),
-            StopwatchState::Counting => todo!(),
+            StopwatchState::Stopped(clock_value) => {
+                ui.label(&clock_value.to_string());
+                if ui.button("Start").clicked() {
+                    self.stopwatch_state = StopwatchState::start_counting(*clock_value);
+                }
+                if ui.button("Reset").clicked() {
+                    self.stopwatch_state = StopwatchState::reset_counter();
+                }
+            }
+            StopwatchState::Counting(start_time, clock_value) => {
+                ui.ctx().request_repaint();
+                let elapsed_clock_value = *clock_value + start_time.elapsed();
+                ui.label(elapsed_clock_value.to_string());
+                if ui.button("Pause").clicked() {
+                    self.stopwatch_state = StopwatchState::stop_counting(elapsed_clock_value);
+                }
+            }
         }
     }
 }
