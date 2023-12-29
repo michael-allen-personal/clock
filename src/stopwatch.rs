@@ -9,12 +9,12 @@ enum StopwatchState {
 }
 
 impl StopwatchState {
-    pub fn start_counting(clock_value: clock::TimeDisplay) -> Self {
-        StopwatchState::Counting(Instant::now(), clock_value)
+    pub fn start_counting(time_display: clock::TimeDisplay) -> Self {
+        StopwatchState::Counting(Instant::now(), time_display)
     }
 
-    pub fn stop_counting(clock_value: clock::TimeDisplay) -> Self {
-        StopwatchState::Stopped(clock_value)
+    pub fn stop_counting(time_display: clock::TimeDisplay) -> Self {
+        StopwatchState::Stopped(time_display)
     }
 
     pub fn reset_counter() -> Self {
@@ -37,18 +37,18 @@ impl Default for Stopwatch {
 impl app::Ui for Stopwatch {
     fn ui(&mut self, ui: &mut egui::Ui) {
         match &mut self.stopwatch_state {
-            StopwatchState::Stopped(clock_value) => {
-                ui.label(&clock_value.to_string());
+            StopwatchState::Stopped(time_display) => {
+                ui.label(&time_display.to_string());
                 if ui.button("Start").clicked() {
-                    self.stopwatch_state = StopwatchState::start_counting(*clock_value);
+                    self.stopwatch_state = StopwatchState::start_counting(*time_display);
                 }
                 if ui.button("Reset").clicked() {
                     self.stopwatch_state = StopwatchState::reset_counter();
                 }
             }
-            StopwatchState::Counting(start_time, clock_value) => {
+            StopwatchState::Counting(start_time, time_display) => {
                 ui.ctx().request_repaint();
-                let elapsed_clock_value = *clock_value + start_time.elapsed();
+                let elapsed_clock_value = *time_display + start_time.elapsed();
                 ui.label(elapsed_clock_value.to_string());
                 if ui.button("Pause").clicked() {
                     self.stopwatch_state = StopwatchState::stop_counting(elapsed_clock_value);

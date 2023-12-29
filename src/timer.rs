@@ -13,15 +13,15 @@ enum TimerState {
 }
 
 impl TimerState {
-    fn set_timer(clock_value: clock::TimeDisplay) -> Self {
-        TimerState::SetTimer(clock_value)
+    fn set_timer(time_display: clock::TimeDisplay) -> Self {
+        TimerState::SetTimer(time_display)
     }
 
-    fn start_countdown(clock_value: clock::TimeDisplay) -> Self {
-        TimerState::Countdown(Instant::now(), clock_value)
+    fn start_countdown(time_display: clock::TimeDisplay) -> Self {
+        TimerState::Countdown(Instant::now(), time_display)
     }
 
-    fn play_timer_sound(clock_value: clock::TimeDisplay) -> Self {
+    fn play_timer_sound(time_display: clock::TimeDisplay) -> Self {
         // get the default device every time, as sometimes I will change
         // output while the clock is still active. I would want the timer
         // to play out of whatever the current output device is when it
@@ -36,13 +36,13 @@ impl TimerState {
 
         sink.append(rodio::Decoder::new(BufReader::new(timer_sound_file)).unwrap());
 
-        TimerState::PlayingTimerSound(clock_value, stream, sink)
+        TimerState::PlayingTimerSound(time_display, stream, sink)
     }
 
     fn stop_timer(&mut self) {
-        if let TimerState::PlayingTimerSound(clock_value, _stream, sink) = self {
+        if let TimerState::PlayingTimerSound(time_display, _stream, sink) = self {
             sink.stop();
-            *self = TimerState::SetTimer(*clock_value);
+            *self = TimerState::SetTimer(*time_display);
         }
     }
 }
@@ -64,16 +64,16 @@ impl Default for Timer {
 impl app::Ui for Timer {
     fn ui(&mut self, ui: &mut egui::Ui) {
         match &mut self.timer_state {
-            TimerState::SetTimer(clock_value) => {
-                clock_value.ui_hms_input(ui);
+            TimerState::SetTimer(time_display) => {
+                time_display.ui_hms_input(ui);
                 if ui.button("Start").clicked() {
-                    self.timer_state = TimerState::start_countdown(*clock_value);
+                    self.timer_state = TimerState::start_countdown(*time_display);
                 }
                 if ui.button("Reset").clicked() {
                     self.timer_state = TimerState::set_timer(clock::TimeDisplay::default());
                 }
             }
-            TimerState::Countdown(start_time, clock_value) => {
+            TimerState::Countdown(start_time, time_display) => {
                 // .5 seconds in nanoseconds
                 // Make sure the window is refershing less than once a second so the second
                 // countdown looks smooth
@@ -83,15 +83,15 @@ impl app::Ui for Timer {
                 // due to rounding. Honestly didn't fully check to see if it works
                 // that way but it makes sense that it would as these arent float types
                 let elapsed = start_time.elapsed().as_millis() as i32;
-                let remaining_ms = clock_value.as_sec_i32() * 1000 - elapsed;
+                let remaining_ms = time_display.as_sec_i32() * 1000 - elapsed;
                 if remaining_ms <= 0 {
-                    self.timer_state = TimerState::play_timer_sound(*clock_value);
+                    self.timer_state = TimerState::play_timer_sound(*time_display);
                     return;
                 }
 
                 ui.label(time_left_as_str(remaining_ms / 1000));
                 if ui.button("Stop").clicked() {
-                    self.timer_state = TimerState::start_countdown(*clock_value);
+                    self.timer_state = TimerState::start_countdown(*time_display);
                 }
             }
             TimerState::PlayingTimerSound(_clock_value, _stream, _sink) => {
