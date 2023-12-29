@@ -3,54 +3,25 @@ use std::time::{Duration, Instant};
 
 use rodio::{OutputStream, Sink};
 
-#[derive(Clone, Copy, Default)]
-struct ClockValue {
-    hour: i32,
-    min: i32,
-    sec: i32,
-}
-
-impl ClockValue {
-    pub fn to_seconds(self) -> i32 {
-        self.hour * 60 * 60 + self.min * 60 + self.sec
-    }
-
-    fn ui_hms_input(&mut self, ui: &mut egui::Ui) {
-        ui.columns(2, |columns| {
-            columns[0].label("Hours: ");
-            ui_time_counter(&mut columns[1], &mut self.hour);
-            columns[0].end_row();
-            columns[1].end_row();
-
-            columns[0].label("Minutes: ");
-            ui_time_counter(&mut columns[1], &mut self.min);
-            columns[0].end_row();
-            columns[1].end_row();
-
-            columns[0].label("Seconds: ");
-            ui_time_counter(&mut columns[1], &mut self.sec);
-            columns[0].end_row();
-            columns[1].end_row();
-        });
-    }
-}
+use crate::app;
+use crate::clock;
 
 enum TimerState {
-    SetTimer(ClockValue),
-    Countdown(Instant, ClockValue),
-    PlayingTimerSound(ClockValue, OutputStream, Sink),
+    SetTimer(clock::TimeDisplay),
+    Countdown(Instant, clock::TimeDisplay),
+    PlayingTimerSound(clock::TimeDisplay, OutputStream, Sink),
 }
 
 impl TimerState {
-    fn set_timer(clock_value: ClockValue) -> Self {
+    fn set_timer(clock_value: clock::TimeDisplay) -> Self {
         TimerState::SetTimer(clock_value)
     }
 
-    fn start_countdown(clock_value: ClockValue) -> Self {
+    fn start_countdown(clock_value: clock::TimeDisplay) -> Self {
         TimerState::Countdown(Instant::now(), clock_value)
     }
 
-    fn play_timer_sound(clock_value: ClockValue) -> Self {
+    fn play_timer_sound(clock_value: clock::TimeDisplay) -> Self {
         // get the default device every time, as sometimes I will change
         // output while the clock is still active. I would want the timer
         // to play out of whatever the current output device is when it
@@ -83,39 +54,14 @@ pub struct Timer {
 impl Default for Timer {
     fn default() -> Self {
         Self {
-            timer_state: TimerState::SetTimer(ClockValue::default()),
+            timer_state: TimerState::SetTimer(clock::TimeDisplay::default()),
         }
     }
 }
 
-impl eframe::App for Timer {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| self.ui(ui));
-    }
-}
-
+// i32 can hold almost 600 hours in ms, no realistic need to worry about overflow
 #[allow(clippy::cast_possible_truncation)]
-impl Timer {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let ctx = &cc.egui_ctx;
-        let mut style: egui::Style = (*ctx.style()).clone();
-
-        // Set the font size for body and button text
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Body)
-            .unwrap()
-            .size = 20.0;
-        style
-            .text_styles
-            .get_mut(&egui::TextStyle::Button)
-            .unwrap()
-            .size = 20.0;
-
-        ctx.set_style(style);
-        Self::default()
-    }
-
+impl app::Ui for Timer {
     fn ui(&mut self, ui: &mut egui::Ui) {
         match &mut self.timer_state {
             TimerState::SetTimer(clock_value) => {
@@ -124,7 +70,7 @@ impl Timer {
                     self.timer_state = TimerState::start_countdown(*clock_value);
                 }
                 if ui.button("Reset").clicked() {
-                    self.timer_state = TimerState::set_timer(ClockValue::default());
+                    self.timer_state = TimerState::set_timer(clock::TimeDisplay::default());
                 }
             }
             TimerState::Countdown(start_time, clock_value) => {
@@ -137,7 +83,7 @@ impl Timer {
                 // due to rounding. Honestly didn't fully check to see if it works
                 // that way but it makes sense that it would as these arent float types
                 let elapsed = start_time.elapsed().as_millis() as i32;
-                let remaining_ms = clock_value.to_seconds() * 1000 - elapsed;
+                let remaining_ms = clock_value.as_sec_i32() * 1000 - elapsed;
                 if remaining_ms <= 0 {
                     self.timer_state = TimerState::play_timer_sound(*clock_value);
                     return;
@@ -156,33 +102,6 @@ impl Timer {
             }
         }
     }
-}
-
-fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i32) {
-    // This component ensures the counter value is
-    // between 0 and 59, as minute and second time
-    // values are between those numbers. Hours are not,
-    // but I have not added days for it to roll over
-    // into, and at a 59 hour timer you are better off
-    // using a calendar app anyways.
-    // The buttons and label are on the same row.
-    ui.horizontal(|ui| {
-        if ui.button("−").clicked() {
-            if counter.is_positive() {
-                *counter -= 1;
-            } else {
-                *counter = 59;
-            }
-        }
-        ui.label(counter.to_string());
-        if ui.button("+").clicked() {
-            if *counter < 59 {
-                *counter += 1;
-            } else {
-                *counter = 0;
-            }
-        }
-    });
 }
 
 fn time_left_as_str(remaining_sec: i32) -> String {
