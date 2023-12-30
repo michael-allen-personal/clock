@@ -2,7 +2,7 @@ This is a simple desktop GUI alarm clock for personal use, created to practice m
 
 # Install Notes
 ## For egui
-GitHub documentation says these libraries are required on linux:
+[GitHub documentation says](https://github.com/emilk/egui#demo) these libraries are required on linux:
 ```bash
 sudo apt install -y libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
