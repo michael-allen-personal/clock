@@ -60,6 +60,7 @@ impl Default for Timer {
 }
 
 // i32 can hold almost 600 hours in ms, no realistic need to worry about overflow
+// but i should do it anyways
 #[allow(clippy::cast_possible_truncation)]
 impl app::Ui for Timer {
     fn ui(&mut self, ui: &mut egui::Ui) {
