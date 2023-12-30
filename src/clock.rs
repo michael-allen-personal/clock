@@ -99,8 +99,16 @@ fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i32) {
     // into, and at a 59 hour timer you are better off
     // using a calendar app anyways.
     // The buttons and label are on the same row.
+    // I need test cases for this
     ui.horizontal(|ui| {
-        if ui.button("−").clicked() {
+        if ui.button("−5").clicked() {
+            if *counter >= 5 {
+                *counter -= 5;
+            } else {
+                *counter = *counter - 5 + 60;
+            }
+        }
+        if ui.button("−1").clicked() {
             if counter.is_positive() {
                 *counter -= 1;
             } else {
@@ -108,11 +116,18 @@ fn ui_time_counter(ui: &mut egui::Ui, counter: &mut i32) {
             }
         }
         ui.label(counter.to_string());
-        if ui.button("+").clicked() {
+        if ui.button("+1").clicked() {
             if *counter < 59 {
                 *counter += 1;
             } else {
                 *counter = 0;
+            }
+        }
+        if ui.button("+5").clicked() {
+            if *counter < 55 {
+                *counter += 5;
+            } else {
+                *counter = *counter + 5 - 60;
             }
         }
     });
