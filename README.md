@@ -1,3 +1,4 @@
+# About
 This is a simple desktop GUI alarm clock for personal use, created to practice my Rust. Currently has only been tested on Ubuntu 22.04, GNOME desktop (Wayland).
 
 # Install Notes
