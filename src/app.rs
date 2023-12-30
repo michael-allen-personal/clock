@@ -6,8 +6,8 @@ pub trait Ui {
 }
 
 enum ApplicationView {
-    Timer(timer::Timer),
-    Stopwatch(stopwatch::Stopwatch),
+    TimerView(timer::Timer),
+    StopwatchView(stopwatch::Stopwatch),
 }
 
 pub struct Application {
@@ -17,7 +17,7 @@ pub struct Application {
 impl Default for Application {
     fn default() -> Self {
         Self {
-            application_view: ApplicationView::Timer(timer::Timer::default()),
+            application_view: ApplicationView::TimerView(timer::Timer::default()),
         }
     }
 }
@@ -26,8 +26,8 @@ impl eframe::App for Application {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("Feature Selector").show(ctx, |ui| self.feature_selector(ui));
         egui::CentralPanel::default().show(ctx, |ui| match &mut self.application_view {
-            ApplicationView::Timer(timer) => timer.ui(ui),
-            ApplicationView::Stopwatch(stopwatch) => stopwatch.ui(ui),
+            ApplicationView::TimerView(timer) => timer.ui(ui),
+            ApplicationView::StopwatchView(stopwatch) => stopwatch.ui(ui),
         });
     }
 }
@@ -55,15 +55,15 @@ impl Application {
 
     fn feature_selector(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_centered(|ui| match &mut self.application_view {
-            ApplicationView::Timer(_timer) => {
+            ApplicationView::TimerView(_timer) => {
                 if ui.button("Stopwatch").clicked() {
                     self.application_view =
-                        ApplicationView::Stopwatch(stopwatch::Stopwatch::default());
+                        ApplicationView::StopwatchView(stopwatch::Stopwatch::default());
                 }
             }
-            ApplicationView::Stopwatch(_stopwatch) => {
+            ApplicationView::StopwatchView(_stopwatch) => {
                 if ui.button("Timer").clicked() {
-                    self.application_view = ApplicationView::Timer(timer::Timer::default());
+                    self.application_view = ApplicationView::TimerView(timer::Timer::default());
                 }
             }
         });
