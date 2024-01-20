@@ -39,7 +39,7 @@ impl TimerState {
         TimerState::PlayingTimerSound(time_display, stream, sink)
     }
 
-    fn stop_timer(&mut self) {
+    fn stop_timer_sound(&mut self) {
         if let TimerState::PlayingTimerSound(time_display, _stream, sink) = self {
             sink.stop();
             *self = TimerState::SetTimer(*time_display);
@@ -92,13 +92,13 @@ impl app::Ui for Timer {
 
                 ui.label(time_left_as_str(remaining_ms / 1000));
                 if ui.button("Stop").clicked() {
-                    self.timer_state = TimerState::start_countdown(*time_display);
+                    self.timer_state = TimerState::set_timer(*time_display);
                 }
             }
             TimerState::PlayingTimerSound(_clock_value, _stream, _sink) => {
                 ui.label("Times Up!");
                 if ui.button("Stop").clicked() {
-                    self.timer_state.stop_timer();
+                    self.timer_state.stop_timer_sound();
                 }
             }
         }
